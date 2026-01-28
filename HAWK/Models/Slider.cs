@@ -12,5 +12,6 @@ namespace HAWK.Models
         public string heading { get; set; }
         [Required]
         public string text { get; set; }
+        public string video { get; set; }
     }
 }

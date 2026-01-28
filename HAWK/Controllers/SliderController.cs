@@ -39,23 +39,48 @@ namespace HAWK.Controllers
             if (dto.image == null || dto.image.Length == 0)
                 return BadRequest("Image file is required");
 
-            var folderPath = Path.Combine(Directory.GetCurrentDirectory(), "server");
-            if (!Directory.Exists(folderPath))
-                Directory.CreateDirectory(folderPath);
+            var rootPath = Directory.GetCurrentDirectory();
 
-            var fileName = Guid.NewGuid().ToString() + Path.GetExtension(dto.image.FileName);
-            var filePath = Path.Combine(folderPath, fileName);
+            // ================= IMAGE =================
+            var imageFolder = Path.Combine(rootPath, "server/sliders/images");
+            if (!Directory.Exists(imageFolder))
+                Directory.CreateDirectory(imageFolder);
 
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            var imageName = Guid.NewGuid() + Path.GetExtension(dto.image.FileName);
+            var imagePath = Path.Combine(imageFolder, imageName);
+
+            using (var stream = new FileStream(imagePath, FileMode.Create))
             {
                 await dto.image.CopyToAsync(stream);
             }
 
+            string? videoDbPath = "";
+
+            // ================= VIDEO (OPTIONAL) =================
+            if (dto.video != null && dto.video.Length > 0)
+            {
+                var videoFolder = Path.Combine(rootPath, "server/sliders/videos");
+                if (!Directory.Exists(videoFolder))
+                    Directory.CreateDirectory(videoFolder);
+
+                var videoName = Guid.NewGuid() + Path.GetExtension(dto.video.FileName);
+                var videoPath = Path.Combine(videoFolder, videoName);
+
+                using (var stream = new FileStream(videoPath, FileMode.Create))
+                {
+                    await dto.video.CopyToAsync(stream);
+                }
+
+                videoDbPath = "/server/sliders/videos/" + videoName;
+            }
+
+            // ================= SAVE =================
             var slider = new Slider
             {
                 heading = dto.heading,
                 text = dto.text,
-                image = "/server/" + fileName
+                image = "/server/sliders/images/" + imageName,
+                video = videoDbPath
             };
 
             _context.Sliders.Add(slider);
@@ -77,24 +102,68 @@ namespace HAWK.Controllers
             slider.heading = dto.heading;
             slider.text = dto.text;
 
+            var rootPath = Directory.GetCurrentDirectory();
+
+            // ================= IMAGE (REPLACE IF UPLOADED) =================
             if (dto.image != null && dto.image.Length > 0)
             {
-                // delete old image if exists
-                var oldPath = Path.Combine(Directory.GetCurrentDirectory(), slider.image.TrimStart('/'));
-                if (System.IO.File.Exists(oldPath))
-                    System.IO.File.Delete(oldPath);
+                // delete old image
+                if (!string.IsNullOrEmpty(slider.image))
+                {
+                    var oldImagePath = Path.Combine(rootPath, slider.image.TrimStart('/'));
+                    if (System.IO.File.Exists(oldImagePath))
+                        System.IO.File.Delete(oldImagePath);
+                }
 
-                // save new image
-                var folderPath = Path.Combine(Directory.GetCurrentDirectory(), "server");
-                var fileName = Guid.NewGuid().ToString() + Path.GetExtension(dto.image.FileName);
-                var filePath = Path.Combine(folderPath, fileName);
+                var imageFolder = Path.Combine(rootPath, "server/sliders/images");
+                if (!Directory.Exists(imageFolder))
+                    Directory.CreateDirectory(imageFolder);
 
-                using (var stream = new FileStream(filePath, FileMode.Create))
+                var imageName = Guid.NewGuid() + Path.GetExtension(dto.image.FileName);
+                var imagePath = Path.Combine(imageFolder, imageName);
+
+                using (var stream = new FileStream(imagePath, FileMode.Create))
                 {
                     await dto.image.CopyToAsync(stream);
                 }
 
-                slider.image = "/server/" + fileName;
+                slider.image = "/server/sliders/images/" + imageName;
+            }
+            else if (string.IsNullOrEmpty(slider.image))
+            {
+                // Image must exist
+                return BadRequest("Image is required.");
+            }
+
+            // ================= VIDEO (REPLACE OR NULL) =================
+            if (dto.video != null && dto.video.Length > 0)
+            {
+                // delete old video if exists
+                if (!string.IsNullOrEmpty(slider.video))
+                {
+                    var oldVideoPath = Path.Combine(rootPath, slider.video.TrimStart('/'));
+                    if (System.IO.File.Exists(oldVideoPath))
+                        System.IO.File.Delete(oldVideoPath);
+                }
+
+                var videoFolder = Path.Combine(rootPath, "server/sliders/videos");
+                if (!Directory.Exists(videoFolder))
+                    Directory.CreateDirectory(videoFolder);
+
+                var videoName = Guid.NewGuid() + Path.GetExtension(dto.video.FileName);
+                var videoPath = Path.Combine(videoFolder, videoName);
+
+                using (var stream = new FileStream(videoPath, FileMode.Create))
+                {
+                    await dto.video.CopyToAsync(stream);
+                }
+
+                slider.video = "/server/sliders/videos/" + videoName;
+            }
+            else
+            {
+                // If no video uploaded, set to null
+                slider.video = "";
             }
 
             _context.Sliders.Update(slider);
@@ -102,6 +171,9 @@ namespace HAWK.Controllers
 
             return Ok(slider);
         }
+
+
+
 
         // DELETE: api/slider/{id}
         [HttpDelete("{id}")]

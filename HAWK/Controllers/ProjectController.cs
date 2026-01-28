@@ -40,16 +40,39 @@ namespace HAWK.Controllers
             if (dto.image == null || dto.image.Length == 0)
                 return BadRequest("Image file is required");
 
-            var folderPath = Path.Combine(Directory.GetCurrentDirectory(), "server");
-            if (!Directory.Exists(folderPath))
-                Directory.CreateDirectory(folderPath);
+            var rootPath = Directory.GetCurrentDirectory();
 
-            var fileName = Guid.NewGuid().ToString() + Path.GetExtension(dto.image.FileName);
-            var filePath = Path.Combine(folderPath, fileName);
+            // ================= IMAGE =================
+            var imageFolder = Path.Combine(rootPath, "server/projects/images");
+            if (!Directory.Exists(imageFolder))
+                Directory.CreateDirectory(imageFolder);
 
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            var imageName = Guid.NewGuid() + Path.GetExtension(dto.image.FileName);
+            var imagePath = Path.Combine(imageFolder, imageName);
+
+            using (var stream = new FileStream(imagePath, FileMode.Create))
             {
                 await dto.image.CopyToAsync(stream);
+            }
+
+            string? videoDbPath = "";
+
+            // ================= VIDEO (OPTIONAL) =================
+            if (dto.video != null && dto.video.Length > 0)
+            {
+                var videoFolder = Path.Combine(rootPath, "server/projects/videos");
+                if (!Directory.Exists(videoFolder))
+                    Directory.CreateDirectory(videoFolder);
+
+                var videoName = Guid.NewGuid() + Path.GetExtension(dto.video.FileName);
+                var videoPath = Path.Combine(videoFolder, videoName);
+
+                using (var stream = new FileStream(videoPath, FileMode.Create))
+                {
+                    await dto.video.CopyToAsync(stream);
+                }
+
+                videoDbPath = "/server/projects/videos/" + videoName;
             }
 
             var project = new Project
@@ -58,7 +81,8 @@ namespace HAWK.Controllers
                 area = dto.area,
                 scope = dto.scope,
                 contractor = dto.contractor,
-                image = "/server/" + fileName
+                image = "/server/projects/images/" + imageName,
+                video = videoDbPath
             };
 
             _context.Projects.Add(project);
@@ -74,31 +98,71 @@ namespace HAWK.Controllers
             if (project == null)
                 return NotFound(new { message = "Project not found" });
 
-            // If new image is uploaded
+            var rootPath = Directory.GetCurrentDirectory();
+
+            // ================= IMAGE (REPLACE IF UPLOADED, REQUIRED TO EXIST) =================
             if (dto.image != null && dto.image.Length > 0)
             {
-                // Delete old file
-                var oldImagePath = Path.Combine(Directory.GetCurrentDirectory(), project.image.TrimStart('/'));
-                if (System.IO.File.Exists(oldImagePath))
-                    System.IO.File.Delete(oldImagePath);
+                // delete old image
+                if (!string.IsNullOrEmpty(project.image))
+                {
+                    var oldImagePath = Path.Combine(rootPath, project.image.TrimStart('/'));
+                    if (System.IO.File.Exists(oldImagePath))
+                        System.IO.File.Delete(oldImagePath);
+                }
 
-                // Save new image
-                var folderPath = Path.Combine(Directory.GetCurrentDirectory(), "server");
-                if (!Directory.Exists(folderPath))
-                    Directory.CreateDirectory(folderPath);
+                var imageFolder = Path.Combine(rootPath, "server/projects/images");
+                if (!Directory.Exists(imageFolder))
+                    Directory.CreateDirectory(imageFolder);
 
-                var fileName = Guid.NewGuid().ToString() + Path.GetExtension(dto.image.FileName);
-                var filePath = Path.Combine(folderPath, fileName);
+                var imageName = Guid.NewGuid() + Path.GetExtension(dto.image.FileName);
+                var imagePath = Path.Combine(imageFolder, imageName);
 
-                using (var stream = new FileStream(filePath, FileMode.Create))
+                using (var stream = new FileStream(imagePath, FileMode.Create))
                 {
                     await dto.image.CopyToAsync(stream);
                 }
 
-                project.image = "/server/" + fileName;
+                project.image = "/server/projects/images/" + imageName;
+            }
+            else if (string.IsNullOrEmpty(project.image))
+            {
+                // Image must exist
+                return BadRequest("Image is required.");
             }
 
-            // Update fields
+            // ================= VIDEO (REPLACE IF UPLOADED, ELSE SET NULL) =================
+            if (dto.video != null && dto.video.Length > 0)
+            {
+                // delete old video
+                if (!string.IsNullOrEmpty(project.video))
+                {
+                    var oldVideoPath = Path.Combine(rootPath, project.video.TrimStart('/'));
+                    if (System.IO.File.Exists(oldVideoPath))
+                        System.IO.File.Delete(oldVideoPath);
+                }
+
+                var videoFolder = Path.Combine(rootPath, "server/projects/videos");
+                if (!Directory.Exists(videoFolder))
+                    Directory.CreateDirectory(videoFolder);
+
+                var videoName = Guid.NewGuid() + Path.GetExtension(dto.video.FileName);
+                var videoPath = Path.Combine(videoFolder, videoName);
+
+                using (var stream = new FileStream(videoPath, FileMode.Create))
+                {
+                    await dto.video.CopyToAsync(stream);
+                }
+
+                project.video = "/server/projects/videos/" + videoName;
+            }
+            else
+            {
+                // If no video uploaded, set to null
+                project.video = "";
+            }
+
+            // ================= UPDATE OTHER FIELDS =================
             project.title = dto.title;
             project.area = dto.area;
             project.scope = dto.scope;
@@ -108,6 +172,8 @@ namespace HAWK.Controllers
 
             return Ok(project);
         }
+
+
 
         // DELETE: api/project/{id}
         [HttpDelete("{id}")]

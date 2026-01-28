@@ -28,6 +28,11 @@ namespace HAWK
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
+            builder.WebHost.ConfigureKestrel(options =>
+            {
+                options.Limits.MaxRequestBodySize = 100 * 1024 * 1024; // 100 MB
+            });
+
             var app = builder.Build();
 
             app.UseStaticFiles(new StaticFileOptions

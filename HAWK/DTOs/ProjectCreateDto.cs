@@ -14,5 +14,7 @@ namespace HAWK.DTOs
         public string contractor { get; set; }
         [Required]
         public IFormFile image { get; set; }
+        public IFormFile? video { get; set; }
+
     }
 }

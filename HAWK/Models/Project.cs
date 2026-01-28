@@ -16,5 +16,6 @@ namespace HAWK.Models
         public string scope { get; set; }
         [Required]
         public string contractor { get; set; }
+        public string video { get; set; }
     }
 }
