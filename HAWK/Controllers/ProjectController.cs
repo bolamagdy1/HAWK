@@ -1,6 +1,7 @@
 ﻿using HAWK.dbcontext;
 using HAWK.DTOs;
 using HAWK.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -34,6 +35,7 @@ namespace HAWK.Controllers
             return Ok(project);
         }
         // POST: api/project
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         public async Task<IActionResult> Create([FromForm] ProjectCreateDto dto)
         {
@@ -91,6 +93,7 @@ namespace HAWK.Controllers
             return CreatedAtAction(nameof(GetAll), new { id = project.id }, project);
         }
         // PUT: api/project/{id}
+        [Authorize(Roles = "Admin")]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromForm] ProjectCreateDto dto)
         {
@@ -176,6 +179,7 @@ namespace HAWK.Controllers
 
 
         // DELETE: api/project/{id}
+        [Authorize(Roles = "Admin")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
