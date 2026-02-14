@@ -14,5 +14,7 @@ namespace HAWK.dbcontext
         public DbSet<Project> Projects { get; set; }
         public DbSet<Certificate> Certificates { get; set; }
         public DbSet<Slider> Sliders { get; set; }
+        public DbSet<WebsiteSettings> WebsiteContents { get; set; }
+
     }
 }

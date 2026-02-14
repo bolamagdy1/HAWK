@@ -34,7 +34,7 @@ namespace HAWK.Controllers
             return Ok(slider);
         }
         // POST: api/slider
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "SuperAdmin,Admin")]
         [HttpPost]
         public async Task<IActionResult> Create([FromForm] SliderCreateDto dto)
         {
@@ -91,7 +91,7 @@ namespace HAWK.Controllers
             return CreatedAtAction(nameof(GetAll), new { id = slider.id }, slider);
         }
         // PUT: api/slider/{id}
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "SuperAdmin,Admin")]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromForm] SliderCreateDto dto)
         {
@@ -179,7 +179,7 @@ namespace HAWK.Controllers
 
 
         // DELETE: api/slider/{id}
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "SuperAdmin,Admin")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {

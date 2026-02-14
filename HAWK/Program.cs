@@ -98,7 +98,7 @@ async Task SeedRolesAndAdminAsync()
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
 
-    string[] roles = { "Admin", "User" };
+    string[] roles = { "SuperAdmin", "Admin", "User" };
 
     foreach (var role in roles)
     {
@@ -115,18 +115,18 @@ async Task SeedRolesAndAdminAsync()
 
     if (adminUser == null)
     {
-        var admin = new AppUser
+        var SuperAdmin = new AppUser
         {
             UserName = adminEmail,
             Email = adminEmail,
             FullName = "Super Admin"
         };
 
-        var result = await userManager.CreateAsync(admin, adminPassword);
+        var result = await userManager.CreateAsync(SuperAdmin, adminPassword);
 
         if (result.Succeeded)
         {
-            await userManager.AddToRoleAsync(admin, "Admin");
+            await userManager.AddToRoleAsync(SuperAdmin, "SuperAdmin");
         }
         else
         {
