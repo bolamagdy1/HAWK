@@ -4,6 +4,7 @@ using HAWK.dbcontext;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HAWK.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260217160659_AddProjectAndSliderMultipleImages")]
+    partial class AddProjectAndSliderMultipleImages
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -172,7 +175,7 @@ namespace HAWK.Migrations
 
                     b.HasIndex("ProjectId");
 
-                    b.ToTable("ProjectImages");
+                    b.ToTable("ProjectImage");
                 });
 
             modelBuilder.Entity("HAWK.Models.Slider", b =>
@@ -182,9 +185,6 @@ namespace HAWK.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("id"));
-
-                    b.Property<int>("SliderLocationID")
-                        .HasColumnType("int");
 
                     b.Property<string>("heading")
                         .IsRequired()
@@ -226,7 +226,7 @@ namespace HAWK.Migrations
 
                     b.HasIndex("SliderId");
 
-                    b.ToTable("SliderImages");
+                    b.ToTable("SliderImage");
                 });
 
             modelBuilder.Entity("HAWK.Models.WebsiteSettings", b =>

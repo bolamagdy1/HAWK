@@ -13,5 +13,9 @@ namespace HAWK.Models
         [Required]
         public string text { get; set; }
         public string video { get; set; }
+        public int SliderLocationID { get; set; }
+
+        // Multiple Images
+        public ICollection<SliderImage> Images { get; set; }
     }
 }

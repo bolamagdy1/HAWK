@@ -16,5 +16,8 @@ namespace HAWK.DTOs
         public IFormFile image { get; set; }
         public IFormFile? video { get; set; }
 
+        // Multiple Images (Gallery)
+        public List<IFormFile>? images { get; set; }
+
     }
 }

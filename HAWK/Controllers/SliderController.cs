@@ -12,28 +12,38 @@ namespace HAWK.Controllers
     public class SliderController : ControllerBase
     {
         private readonly AppDbContext _context;
+
         public SliderController(AppDbContext context)
         {
             _context = context;
         }
-        // GET: api/project
+
+        // ================= GET ALL =================
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            var sliders = await _context.Sliders.ToListAsync();
+            var sliders = await _context.Sliders
+                .Include(s => s.Images)
+                .ToListAsync();
+
             return Ok(sliders);
         }
-        // GET: api/slider/{id}
+
+        // ================= GET BY ID =================
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var slider = await _context.Sliders.FindAsync(id);
+            var slider = await _context.Sliders
+                .Include(s => s.Images)
+                .FirstOrDefaultAsync(s => s.id == id);
+
             if (slider == null)
                 return NotFound($"Slider with ID {id} not found.");
 
             return Ok(slider);
         }
-        // POST: api/slider
+
+        // ================= CREATE =================
         [Authorize(Roles = "SuperAdmin,Admin")]
         [HttpPost]
         public async Task<IActionResult> Create([FromForm] SliderCreateDto dto)
@@ -43,11 +53,11 @@ namespace HAWK.Controllers
 
             var rootPath = Directory.GetCurrentDirectory();
 
-            // ================= IMAGE =================
             var imageFolder = Path.Combine(rootPath, "server/sliders/images");
             if (!Directory.Exists(imageFolder))
                 Directory.CreateDirectory(imageFolder);
 
+            // ===== MAIN IMAGE =====
             var imageName = Guid.NewGuid() + Path.GetExtension(dto.image.FileName);
             var imagePath = Path.Combine(imageFolder, imageName);
 
@@ -56,9 +66,9 @@ namespace HAWK.Controllers
                 await dto.image.CopyToAsync(stream);
             }
 
+            // ===== VIDEO (OPTIONAL) =====
             string? videoDbPath = "";
 
-            // ================= VIDEO (OPTIONAL) =================
             if (dto.video != null && dto.video.Length > 0)
             {
                 var videoFolder = Path.Combine(rootPath, "server/sliders/videos");
@@ -76,11 +86,11 @@ namespace HAWK.Controllers
                 videoDbPath = "/server/sliders/videos/" + videoName;
             }
 
-            // ================= SAVE =================
             var slider = new Slider
             {
                 heading = dto.heading,
                 text = dto.text,
+                SliderLocationID = dto.SliderLocationID,
                 image = "/server/sliders/images/" + imageName,
                 video = videoDbPath
             };
@@ -88,39 +98,60 @@ namespace HAWK.Controllers
             _context.Sliders.Add(slider);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetAll), new { id = slider.id }, slider);
+            // ===== GALLERY IMAGES =====
+            if (dto.images != null && dto.images.Any())
+            {
+                foreach (var file in dto.images)
+                {
+                    var fileName = Guid.NewGuid() + Path.GetExtension(file.FileName);
+                    var filePath = Path.Combine(imageFolder, fileName);
+
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await file.CopyToAsync(stream);
+                    }
+
+                    _context.SliderImages.Add(new SliderImage
+                    {
+                        image = "/server/sliders/images/" + fileName,
+                        SliderId = slider.id
+                    });
+                }
+
+                await _context.SaveChangesAsync();
+            }
+
+            return Ok(slider);
         }
-        // PUT: api/slider/{id}
+
+        // ================= UPDATE =================
         [Authorize(Roles = "SuperAdmin,Admin")]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromForm] SliderCreateDto dto)
         {
-            var slider = await _context.Sliders.FindAsync(id);
+            var slider = await _context.Sliders
+                .Include(s => s.Images)
+                .FirstOrDefaultAsync(s => s.id == id);
+
             if (slider == null)
                 return NotFound($"Slider with ID {id} not found.");
 
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            var rootPath = Directory.GetCurrentDirectory();
+            var imageFolder = Path.Combine(rootPath, "server/sliders/images");
 
             slider.heading = dto.heading;
             slider.text = dto.text;
+            slider.SliderLocationID = dto.SliderLocationID;
 
-            var rootPath = Directory.GetCurrentDirectory();
-
-            // ================= IMAGE (REPLACE IF UPLOADED) =================
+            // ===== REPLACE MAIN IMAGE =====
             if (dto.image != null && dto.image.Length > 0)
             {
-                // delete old image
                 if (!string.IsNullOrEmpty(slider.image))
                 {
                     var oldImagePath = Path.Combine(rootPath, slider.image.TrimStart('/'));
                     if (System.IO.File.Exists(oldImagePath))
                         System.IO.File.Delete(oldImagePath);
                 }
-
-                var imageFolder = Path.Combine(rootPath, "server/sliders/images");
-                if (!Directory.Exists(imageFolder))
-                    Directory.CreateDirectory(imageFolder);
 
                 var imageName = Guid.NewGuid() + Path.GetExtension(dto.image.FileName);
                 var imagePath = Path.Combine(imageFolder, imageName);
@@ -132,16 +163,10 @@ namespace HAWK.Controllers
 
                 slider.image = "/server/sliders/images/" + imageName;
             }
-            else if (string.IsNullOrEmpty(slider.image))
-            {
-                // Image must exist
-                return BadRequest("Image is required.");
-            }
 
-            // ================= VIDEO (REPLACE OR NULL) =================
+            // ===== REPLACE VIDEO =====
             if (dto.video != null && dto.video.Length > 0)
             {
-                // delete old video if exists
                 if (!string.IsNullOrEmpty(slider.video))
                 {
                     var oldVideoPath = Path.Combine(rootPath, slider.video.TrimStart('/'));
@@ -163,39 +188,77 @@ namespace HAWK.Controllers
 
                 slider.video = "/server/sliders/videos/" + videoName;
             }
-            else
+
+            // ===== ADD NEW GALLERY IMAGES =====
+            if (dto.images != null && dto.images.Any())
             {
-                // If no video uploaded, set to null
-                slider.video = "";
+                foreach (var file in dto.images)
+                {
+                    var fileName = Guid.NewGuid() + Path.GetExtension(file.FileName);
+                    var filePath = Path.Combine(imageFolder, fileName);
+
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await file.CopyToAsync(stream);
+                    }
+
+                    _context.SliderImages.Add(new SliderImage
+                    {
+                        image = "/server/sliders/images/" + fileName,
+                        SliderId = slider.id
+                    });
+                }
             }
 
-            _context.Sliders.Update(slider);
             await _context.SaveChangesAsync();
 
             return Ok(slider);
         }
 
-
-
-
-        // DELETE: api/slider/{id}
+        // ================= DELETE =================
         [Authorize(Roles = "SuperAdmin,Admin")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var slider = await _context.Sliders.FindAsync(id);
+            var slider = await _context.Sliders
+                .Include(s => s.Images)
+                .FirstOrDefaultAsync(s => s.id == id);
+
             if (slider == null)
                 return NotFound($"Slider with ID {id} not found.");
 
-            // delete image
-            var imagePath = Path.Combine(Directory.GetCurrentDirectory(), slider.image.TrimStart('/'));
-            if (System.IO.File.Exists(imagePath))
-                System.IO.File.Delete(imagePath);
+            var rootPath = Directory.GetCurrentDirectory();
 
+            // Delete main image
+            if (!string.IsNullOrEmpty(slider.image))
+            {
+                var imagePath = Path.Combine(rootPath, slider.image.TrimStart('/'));
+                if (System.IO.File.Exists(imagePath))
+                    System.IO.File.Delete(imagePath);
+            }
+
+            // Delete video
+            if (!string.IsNullOrEmpty(slider.video))
+            {
+                var videoPath = Path.Combine(rootPath, slider.video.TrimStart('/'));
+                if (System.IO.File.Exists(videoPath))
+                    System.IO.File.Delete(videoPath);
+            }
+
+            // Delete gallery images
+            foreach (var img in slider.Images)
+            {
+                var imgPath = Path.Combine(rootPath, img.image.TrimStart('/'));
+                if (System.IO.File.Exists(imgPath))
+                    System.IO.File.Delete(imgPath);
+            }
+
+            _context.SliderImages.RemoveRange(slider.Images);
             _context.Sliders.Remove(slider);
+
             await _context.SaveChangesAsync();
 
-            return NoContent();
+            return Ok(new { message = "Slider deleted successfully" });
         }
     }
 }

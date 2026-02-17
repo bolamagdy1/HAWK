@@ -17,5 +17,8 @@ namespace HAWK.Models
         [Required]
         public string contractor { get; set; }
         public string video { get; set; }
+
+        // Multiple Images
+        public ICollection<ProjectImage> Images { get; set; }
     }
 }

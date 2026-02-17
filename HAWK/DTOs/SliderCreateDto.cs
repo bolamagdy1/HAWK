@@ -11,5 +11,10 @@ namespace HAWK.DTOs
         [Required]
         public IFormFile image { get; set; }
         public IFormFile? video { get; set; }
+        [Required]
+        public int SliderLocationID { get; set; }
+
+        // Multiple Images
+        public List<IFormFile>? images { get; set; }
     }
 }
